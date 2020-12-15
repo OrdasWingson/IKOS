@@ -1,28 +1,19 @@
-FFC00000 - 3000 - 9000
-FFFFEFFC - 3ff8 - 3000
-ffc00000 + 3ff800 + ffc
- 3FF8000
-ffc
+﻿F:\OS\fasmw17321\fasm
+gcc -c -m32 -ffreestanding -o F:\OS\dd-0.5\bin\main.o F:\OS\dd-0.5\bin\main.c
 
-10 - 10 - 12
-1111 1111 1100 -ffc
-            1111 1111 1000 -ff8
-			            11 1111  1111 00 -ffc
-1111 1111 1111 1111 1110 1111 1111 1100
 
-ffcff8 000
 
-1111 1111 1111 1111 1110 0000 0000 0000
-       ff        ff        e0        00
-	   
-	   FFFFDFFC
-1111 1111 11
-             11 1111 1101 
-			              1111 1111 1100
-ffc          ff4          ffc
+ld --oformat=binary -mi386pe -T F:\OS\dd-0.5\bin\script.ld -o F:\OS\dd-0.5\bin\kernel.bin F:\OS\dd-0.5\bin\startup.o F:\OS\dd-0.5\bin\main.o 
 
-0xFFFFF000
-1111 1111 11
-            11 1111 1111 
-			              0000 0000 0000
-ffc         ffc
+
+
+
+F:\OS>cd F:\OS\dd-0.5\bin
+
+F:\OS\dd-0.5\bin>make
+ld -melf_i386 -T  F:\OS\dd-0.5\bin\script.ld -o  F:\OS\dd-0.5\bin\kernel.bin  F:
+\OS\dd-0.5\bin\startup.o  F:\OS\dd-0.5\bin\main.o
+ld: unrecognised emulation mode: elf_i386
+Supported emulations: i386pep i386pe
+make: *** [Makefile:2: all] Error 1
+

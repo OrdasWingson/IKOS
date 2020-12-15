@@ -223,7 +223,7 @@ boot:
         mov bx, 0x7E00 / 16
         call load_file_data
         ; Переходим на продолжение
-        jmp boot2
+        jmp boot2 ;7df3
 ; Пустое пространство и сигнатура
 rb 510 - ($ - $$)
 db 0x55,0xAA
@@ -234,6 +234,9 @@ ok_msg db "OK",13,10,0
 config_file_name db "boot.cfg",0
 start16_msg db "Starting 16 bit kernel...",13,10,0
 start32_msg db "Starting 32 bit kernel...",13,10,0
+logo_file db "system/logo",0
+label module_list at 0x6000
+label memory_map at 0x7000
 ; Разбиение строки DS:SI по символу слеша
 split_file_name:
         push si
@@ -281,6 +284,75 @@ load_file:
         call write_str
         pop bp si
         ret
+		
+		
+write_logo:
+    push bx si ;
+    ;call write_str
+    mov si, word logo_file
+;Загрузка файла с именем DS:SI в буфер BX:0. Размер файла в секторах возвращается в AX
+    mov bx, 0x5000 / 16
+    call load_file
+    mov si, 0x5000
+    call write_str
+    pop si bx
+    ret
+
+; Получение карты памяти
+get_memory_map:
+	mov di, memory_map
+	xor ebx, ebx
+@@:
+	mov eax, 0xE820
+	mov edx, 0x534D4150
+	mov ecx, 24
+	mov dword[di + 20], 1
+	int 0x15
+	jc @f
+	add di, 24
+	test ebx, ebx
+	jnz @b
+@@:
+	cmp di, 0x7000 ;7ef9
+	ja .ok
+	mov dword[di], 0x100000
+	mov dword[di + 4], 0
+	mov dword[di + 12], 0
+	mov dword[di + 16], 1
+	mov dword[di + 20], 0
+	mov ax, 0xE801
+	int 0x15
+	jnc @f
+	mov ah, 0x88
+	int 0x15
+	jc .ok
+	mov cx, ax
+	xor dx, dx
+@@:
+	test cx, cx
+	jz @f
+	mov ax, cx
+	mov bx, dx
+@@:
+	movzx eax, ax
+	movzx ebx, bx
+	mov ecx, 1024
+	mul ecx
+	push eax
+	mov eax, ebx
+	mov ecx, 65536
+	mul ecx
+	pop edx
+	add eax, edx
+	mov [di + 8], eax
+	add di, 24
+	jmp .ok
+ .ok:
+	xor ax, ax
+	mov cx, 24 / 2
+	rep stosw
+	ret
+			
 ; Продолжение начального загрузчика
 boot2:
         ; Загрузим конфигурационный файл загрузчика
@@ -289,27 +361,27 @@ boot2:
         call load_file
         ; Выполним загрузочный скрипт
         mov bx, 0x9000 / 16
-        mov bp, 0x6000
+        mov bp, module_list
         mov dx, 0x1000
  .parse_line:
-        mov si, dx ;7ebf
+        mov si, dx ;7f86
  .parse_char:
         lodsb
         test al, al
         jz .config_end
-                cmp al, ";"
+        cmp al, ";"
         je .run_command
-                cmp al, 10
-                jne .check
-                inc dx
-                jmp .parse_line
+        cmp al, 10
+        jne .check
+        inc dx
+        jmp .parse_line
  .check:                
-                cmp al, 13
-                jne .parse_char
-                inc dx
-                jmp .parse_line
+        cmp al, 13
+        jne .parse_char
+        inc dx
+        jmp .parse_line
  .run_command:
-        mov byte[si - 1], 0 ;7ed8
+        mov byte[si - 1], 0 ;7f9f
         xchg dx, si
         cmp byte[si], 0
         je .parse_line ; Пустая строка
@@ -331,7 +403,7 @@ boot2:
         jmp reboot
 ; Загрузка файла
  .load_file:
-        push dx ;7f20
+        push dx ;7fe7
         inc si
         call load_file
         push ax
@@ -357,13 +429,13 @@ boot2:
 ; Запуск ядра
  .start:
         ; Проверим, что загружен хотя бы один файл
-        cmp bx, 0x9000 / 16 ;7f5f
+        cmp bx, 0x9000 / 16 ;8026
         ja @f
         call error
         db "NO KERNEL LOADED",13,10,0   
  @@:
         ; Заполняем последний элемент списка файлов
-        xor ax, ax ;7f7b
+        xor ax, ax ;8042
         mov cx, 16
         mov di, bp
         rep stosw
@@ -381,13 +453,13 @@ boot2:
 ; Запуск 16-разрядного ядра
  .start16:
         mov si, start16_msg
-        mov bx, 0x6000
+        mov bx, module_list
         mov dl, [disk_id]
         jmp 0x9000
 ; Запуск 32-разрядного ядра
  .start32:
         ; Выводим уведомление о запуске 32-битного ядра
-        mov si, start32_msg ;7fc2
+        mov si, start32_msg ;8089
         call write_str
         call write_logo
         ; Проверим, что процессор не хуже i386
@@ -401,8 +473,10 @@ boot2:
         call error
         db "Required i386 or better",13,10,0    
 @@:
+		; Получим карту памяти
+		call get_memory_map ;80ba
         ; Очистим таблицы страниц
-        xor ax, ax ;7ff3
+        xor ax, ax ;80bd
         mov cx, 3 * 4096 / 2 ;три таблицы по два байта размером 4096
         mov di, 0x1000
         rep stosw
@@ -418,11 +492,12 @@ boot2:
         add eax, 0x1000
         loop @b
         ; Заполним последнюю таблицу страниц
-        mov di, 0x3000
-        mov eax, dword[0x6000]
+        mov di, 0x3000 
+        mov eax, dword[module_list] ;80ec
         or eax, 11b
-        mov ecx, dword[0x6008]
+        mov ecx, dword[module_list + 8]
         shr ecx, 12
+		inc cx
 @@:
         stosd
         add eax, 0x1000
@@ -451,19 +526,6 @@ gdt32:
 gdtr32:
         dw $ - gdt32 - 1
         dd gdt32
-        
-logo_file db "system/logo",0
-write_logo:
-                push bx si ;
-                ;call write_str
-                mov si, word logo_file
-;Загрузка файла с именем DS:SI в буфер BX:0. Размер файла в секторах возвращается в AX
-                mov bx, 0x5000 / 16
-                call load_file
-                mov si, 0x5000
-                call write_str
-                pop si bx
-                ret
                 
 ; 32-битный код
 use32
@@ -474,12 +536,21 @@ start32:
         mov es, ax
         mov fs, ax
         mov gs, ax
-        mov ss, ax ;8:80bb
+        mov ss, ax ;8:816b
         mov esp, 0xFFFFDFFC ;mov esp, 0xFFFFDFFC
         ; Выводим символы на экран
         mov byte[0xB8000 + (25 * 80 - 6) * 2], "K"
         mov dword[0xFFFFEFFC], 0xB8000 + 11b ;0xFFFFEFFC
         mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000
+		
+		; Поместим в DL номер загрузочного диска
+		mov dl, [disk_id]
+		; Поместим в EBX адрес списка загруженных файлов
+		mov ebx, module_list
+		; Поместим в ESI адрес карты памяти
+		mov esi, memory_map
+		; Переходим на ядро
+		jmp 0xFFC00000 
         ; Завершение
         jmp $
 
