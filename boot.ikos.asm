@@ -497,7 +497,7 @@ boot2:
         or eax, 11b
         mov ecx, dword[module_list + 8]
         shr ecx, 12
-		inc cx
+		add cx, 2; inc cx
 @@:
         stosd
         add eax, 0x1000
@@ -541,7 +541,7 @@ start32:
         ; Выводим символы на экран
         mov byte[0xB8000 + (25 * 80 - 6) * 2], "K"
         mov dword[0xFFFFEFFC], 0xB8000 + 11b ;0xFFFFEFFC
-        mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000
+        mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000		
 		
 		; Поместим в DL номер загрузочного диска
 		mov dl, [disk_id]
@@ -550,7 +550,7 @@ start32:
 		; Поместим в ESI адрес карты памяти
 		mov esi, memory_map
 		; Переходим на ядро
-		jmp 0xFFC00000 
+		jmp 0xFFC00000 ;8182
         ; Завершение
         jmp $
 

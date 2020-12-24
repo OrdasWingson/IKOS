@@ -7,11 +7,11 @@ section ".text" executable
 
 _start:
         movzx edx, dl
-        push edx
-        push esi
         push ebx
+        push esi
+        push edx
         lgdt [gdtr]
-        call _kernel_main
+        call _kernel_main ;ffc0000d
 @@:
         ;cli
         ;hlt

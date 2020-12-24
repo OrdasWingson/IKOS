@@ -1,5 +1,4 @@
 #include "stdlib.h"
-#include "tty.h"
 
 typedef struct {
 	uint64 base;
@@ -7,24 +6,10 @@ typedef struct {
 } BootModuleInfo;
 
 void kernel_main(uint8 boot_disk_id, void *memory_map, BootModuleInfo *boot_module_list) {
-	/*char *screen_buffer = (void*)0xB8000;
+	char *screen_buffer = (void*)0xB8000;
 	memset_word(screen_buffer, 0x0E00, 2000);
-	char msg[] = {'H',0x01}; //,'e',0x02,'l',0x03,'l',0x04,'o',0x05,' ',0x0E,'w',0x06,'o',0x07,'r',0x08,'l',0x09,'d',0x0a,'!',0x0b};
-	memcpy(screen_buffer, msg, sizeof(msg));*/
-	
-	init_tty();
-	set_text_attr(0x1F);
-	clear_screen();
-	out_string("Hello worldddddddddddddd!\n");
-	
-	set_text_attr(15);
-	write("Welcome to MyOS!\n");
-	write("Boot disk id is %d\n", boot_disk_id);
-	write("Memory map at 0x%x\n", memory_map);
-	write("Boot module list at 0x%x\n", boot_module_list);
-	write("String is %s, char is %c, number is %d, hex number is 0x%x", __DATE__, 'A', 1234, 0x1234);
-
-
+	char msg[] = {'H',0x01,'e',0x02,'l',0x03,'l',0x04,'o',0x05,' ',0x0E,'w',0x06,'o',0x07,'r',0x08,'l',0x09,'d',0x0a,'!',0x0b};
+	memcpy(screen_buffer, msg, sizeof(msg));
 } 
 
 /*
