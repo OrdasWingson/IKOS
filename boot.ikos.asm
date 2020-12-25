@@ -548,9 +548,9 @@ start32:
 		; Поместим в EBX адрес списка загруженных файлов
 		mov ebx, module_list
 		; Поместим в ESI адрес карты памяти
-		mov esi, memory_map
+		mov esi, memory_map ;8195
 		; Переходим на ядро
-		jmp 0xFFC00000 ;8182
+		jmp 0xFFC00000 ;819a
         ; Завершение
         jmp $
 
