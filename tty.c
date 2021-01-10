@@ -2,6 +2,7 @@
 #include "stdlib.h"
 #include "interrupts.h"
 #include "tty.h"
+#include "scancodes.h"
 
 typedef struct {
 	uint8 chr;
@@ -16,6 +17,10 @@ TtyChar *tty_buffer;
 uint16 tty_io_port;
 const char digits[] = "0123456789ABCDEF";
 char num_buffer[65];
+#define KEY_BUFFER_SIZE 16
+char key_buffer[KEY_BUFFER_SIZE];
+unsigned int key_buffer_head = 0;
+unsigned int key_buffer_tail = 0; 
 
 void keyboard_int_handler();
 
@@ -33,6 +38,12 @@ void out_char(char chr) {
 	switch (chr) {
 		case '\n':
 			move_cursor((cursor / tty_width + 1) * tty_width);
+			break;
+		case 0:
+			cursor--;
+			tty_buffer[cursor].chr = chr;
+			tty_buffer[cursor].attr = text_attr;
+			move_cursor(cursor);
 			break;
 		default:
 			tty_buffer[cursor].chr = chr;
@@ -92,7 +103,7 @@ char *int_to_str(size_t value, unsigned char base) {
 	return &num_buffer[i + 1];
 }
 
-void write(char *fmt, ...) {
+void printf(char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	while (*fmt) {
@@ -130,14 +141,90 @@ void write(char *fmt, ...) {
 	va_end(args);
 } 
 
+uint8 in_scancode() {
+	uint8 result;
+	if (key_buffer_head != key_buffer_tail) {
+		if (key_buffer_head >= KEY_BUFFER_SIZE) {
+			key_buffer_head = 0;
+		}
+		result = key_buffer[key_buffer_head];
+		key_buffer_head++;
+	} else {
+		result = 0;
+	}
+	return result;
+} 
+
+char in_char(bool wait) {
+	static bool shift = false;
+	uint8 chr;
+	do {
+		chr = in_scancode();
+		switch (chr) {
+			case 0x2A:
+			case 0x36:
+				shift = true;
+				break;
+			case 0x2A + 0x80:
+			case 0x36 + 0x80:
+				shift = false;
+				break;
+		}
+		if (chr & 0x80) {
+			chr = 0;
+		}
+		if (shift) {
+			chr = scancodes_shifted[chr];
+		} else {
+			chr = scancodes[chr];
+		}
+	} while (wait && (!chr));
+	return chr;
+} 
+
+void in_string(char *buffer, size_t buffer_size) {
+	char chr;
+	size_t position = 0;
+	do {
+		chr = in_char(true);
+		switch (chr) {
+			case 0:
+				break;
+			case 8:
+				if (position > 0) {
+					position--;
+					out_char(0);
+				}
+				break;
+			case '\n':
+				out_char('\n');
+				break;
+			default:
+				if (position < buffer_size - 1) {
+					buffer[position] = chr;
+					position++;
+					out_char(chr);
+				}
+		}
+	} while (chr != '\n');
+	buffer[position] = 0;
+}
+
+
 IRQ_HANDLER(keyboard_int_handler) {
 	uint8 key_code;
 	inportb(0x60, key_code);
-	write("You pressed key with code %d\n", key_code);
+	//write("You pressed key with code %d\n", key_code);
+	if (key_buffer_tail >= KEY_BUFFER_SIZE) {
+		key_buffer_tail = 0;
+	}	
+	key_buffer_tail++;
+	key_buffer[key_buffer_tail - 1] = key_code;
+	
 	uint8 status;
 	inportb(0x61, status);
 	status |= 1;
 	outportb(0x61, status);
-} 
+}
 
 

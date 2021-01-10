@@ -19,6 +19,8 @@ IntDesc *idt = (void*)0xFFFFC000;
 
 void timer_int_handler();
 
+void empty_handler();
+
 void init_interrupts() {
 	*((size_t*)0xFFFFEFF0) = 0x8000 | 3;
 	memset(idt, 0, 256 * sizeof(IntDesc));
@@ -35,6 +37,12 @@ void init_interrupts() {
 	outportb(0xA1, 2);
 	outportb(0xA1, 1);
 	set_int_handler(irq_base, timer_int_handler, 0x8E);
+	
+	for ( uint8 i = 2; i<16; i++)
+	{
+		set_int_handler(irq_base+i, empty_handler, 0x8E);
+	}
+	
 	asm("sti");
 }
 
@@ -50,4 +58,7 @@ void set_int_handler(uint8 index, void *handler, uint8 type) {
 
 IRQ_HANDLER(timer_int_handler) {
 	(*((char*)(0xB8000 + 79 * 2)))++;
+}
+IRQ_HANDLER(empty_handler) {
+	
 }

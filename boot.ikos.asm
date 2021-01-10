@@ -284,10 +284,10 @@ load_file:
         call write_str
         pop bp si
         ret
-		
-		
+                
+                
 write_logo:
-    push bx si ;
+    push ax cx dx bx si ;ax cx dx
     ;call write_str
     mov si, word logo_file
 ;Загрузка файла с именем DS:SI в буфер BX:0. Размер файла в секторах возвращается в AX
@@ -295,64 +295,71 @@ write_logo:
     call load_file
     mov si, 0x5000
     call write_str
-    pop si bx
+        ;задержка
+    xor ax, ax
+    mov ah, 0x86
+    mov cx, 7h
+    mov dx, 9900H
+    int 15h
+    
+	pop si bx dx cx ax
     ret
 
 ; Получение карты памяти
 get_memory_map:
-	mov di, memory_map
-	xor ebx, ebx
+        mov di, memory_map
+        xor ebx, ebx
 @@:
-	mov eax, 0xE820
-	mov edx, 0x534D4150
-	mov ecx, 24
-	mov dword[di + 20], 1
-	int 0x15
-	jc @f
-	add di, 24
-	test ebx, ebx
-	jnz @b
+        mov eax, 0xE820
+        mov edx, 0x534D4150
+        mov ecx, 24
+        mov dword[di + 20], 1
+        int 0x15
+        jc @f
+        add di, 24
+        test ebx, ebx
+        jnz @b
 @@:
-	cmp di, 0x7000 ;7ef9
-	ja .ok
-	mov dword[di], 0x100000
-	mov dword[di + 4], 0
-	mov dword[di + 12], 0
-	mov dword[di + 16], 1
-	mov dword[di + 20], 0
-	mov ax, 0xE801
-	int 0x15
-	jnc @f
-	mov ah, 0x88
-	int 0x15
-	jc .ok
-	mov cx, ax
-	xor dx, dx
+        cmp di, 0x7000 ;7ef9
+        ja .ok
+        mov dword[di], 0x100000
+        mov dword[di + 4], 0
+        mov dword[di + 12], 0
+        mov dword[di + 16], 1
+        mov dword[di + 20], 0
+        mov ax, 0xE801
+        int 0x15
+        jnc @f
+        mov ah, 0x88
+        int 0x15
+        jc .ok
+        mov cx, ax
+        xor dx, dx
 @@:
-	test cx, cx
-	jz @f
-	mov ax, cx
-	mov bx, dx
+        test cx, cx
+        jz @f
+        mov ax, cx
+        mov bx, dx
 @@:
-	movzx eax, ax
-	movzx ebx, bx
-	mov ecx, 1024
-	mul ecx
-	push eax
-	mov eax, ebx
-	mov ecx, 65536
-	mul ecx
-	pop edx
-	add eax, edx
-	mov [di + 8], eax
-	add di, 24
-	jmp .ok
+        movzx eax, ax
+        movzx ebx, bx
+        mov ecx, 1024
+        mul ecx
+        push eax
+        mov eax, ebx
+        mov ecx, 65536
+        mul ecx
+        pop edx
+        add eax, edx
+        mov [di + 8], eax
+        add di, 24
+        jmp .ok
  .ok:
-	xor ax, ax
-	mov cx, 24 / 2
-	rep stosw
-	ret
-			
+        xor ax, ax
+        mov cx, 24 / 2
+        rep stosw
+        ret
+                        
 ; Продолжение начального загрузчика
 boot2:
         ; Загрузим конфигурационный файл загрузчика
@@ -459,7 +466,7 @@ boot2:
 ; Запуск 32-разрядного ядра
  .start32:
         ; Выводим уведомление о запуске 32-битного ядра
-        mov si, start32_msg ;8089
+        mov si, start32_msg ;8089 ;809b - с паузой
         call write_str
         call write_logo
         ; Проверим, что процессор не хуже i386
@@ -473,8 +480,8 @@ boot2:
         call error
         db "Required i386 or better",13,10,0    
 @@:
-		; Получим карту памяти
-		call get_memory_map ;80ba
+                ; Получим карту памяти
+        call get_memory_map ;80ba ;80cc
         ; Очистим таблицы страниц
         xor ax, ax ;80bd
         mov cx, 3 * 4096 / 2 ;три таблицы по два байта размером 4096
@@ -492,12 +499,12 @@ boot2:
         add eax, 0x1000
         loop @b
         ; Заполним последнюю таблицу страниц
-        mov di, 0x3000 
+        mov di, 0x3000 ;pause - 80fb
         mov eax, dword[module_list] ;80ec
         or eax, 11b
         mov ecx, dword[module_list + 8]
         shr ecx, 12
-		add cx, 2; inc cx
+        add cx, 2; inc cx
 @@:
         stosd
         add eax, 0x1000
@@ -506,7 +513,11 @@ boot2:
         mov dword[0x3FF8], 0x3000 + 11b ; Kernel page table
         ; Загрузим значение в CR3
         mov eax, 0x1000
-        mov cr3, eax
+        mov cr3, eax ;p-8134
+		;откроем адресную линию A20
+		in al, 0x92
+		or al,2
+		out 0x92, al
         ; Загрузим значение в GDTR
         lgdt [gdtr32]
         ; Запретим прерывания
@@ -536,21 +547,21 @@ start32:
         mov es, ax
         mov fs, ax
         mov gs, ax
-        mov ss, ax ;8:816b
+        mov ss, ax ;p-818b
         mov esp, 0xFFFFDFFC ;mov esp, 0xFFFFDFFC
         ; Выводим символы на экран
         mov byte[0xB8000 + (25 * 80 - 6) * 2], "K"
         mov dword[0xFFFFEFFC], 0xB8000 + 11b ;0xFFFFEFFC
-        mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000		
-		
-		; Поместим в DL номер загрузочного диска
-		mov dl, [disk_id]
-		; Поместим в EBX адрес списка загруженных файлов
-		mov ebx, module_list
-		; Поместим в ESI адрес карты памяти
-		mov esi, memory_map ;8195
-		; Переходим на ядро
-		jmp 0xFFC00000 ;819a
+        mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000              
+                
+        ; Поместим в DL номер загрузочного диска
+        mov dl, [disk_id]
+        ; Поместим в EBX адрес списка загруженных файлов
+        mov ebx, module_list
+        ; Поместим в ESI адрес карты памяти
+        mov esi, memory_map ;8195
+        ; Переходим на ядро
+        jmp 0xFFC00000 ;819a ;p-81ba
         ; Завершение
         jmp $
 

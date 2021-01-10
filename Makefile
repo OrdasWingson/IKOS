@@ -11,7 +11,7 @@ stdlib.o: stdlib.c stdlib.h
 	gcc -c $(CFLAGS) -o stdlib.o stdlib.c
 interrupts.o: interrupts.c interrupts.h stdlib.h
 	gcc -c $(CFLAGS) -o interrupts.o interrupts.c
-tty.o: tty.c tty.h stdlib.h
+tty.o: tty.c tty.h stdlib.h scancodes.h
 	gcc -c $(CFLAGS) -o tty.o tty.c
 main.o: main.c stdlib.h 
 	gcc -c $(CFLAGS) -o main.o main.c

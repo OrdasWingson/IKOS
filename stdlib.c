@@ -20,22 +20,19 @@ int memcmp(void *mem1, void *mem2, size_t count) {
 	char above, below;
 	asm("movl %0, %%esi \n movl %1, %%edi \n movl %2, %%ecx \n repe cmpsb"::"a"(mem1),"b"(mem2),"c"(count));
 	asm("seta %0 \n setb %1":"=a"(above),"=b"(below));
-	return above - below;
+	return below - above;
 }
 
 void *memchr(void *mem, char value, size_t count) {
 	void *result;
-	asm("movb %b0, %%al \n movl %1, %%edi \n movl %2, %%ecx \n repe cmpsb"::"a"(value),"b"(mem),"c"(count)); //%b0
-	asm("movl %%edi, %0":"=a"(result));
-	if (result < mem + count) {
-		return result;
-	} else {
-		return NULL;
-	}
+	asm("movb %b0, %%ah \n movl %1, %%esi \n movl %2, %%ecx\n .MC:\n lodsb \n cmp %%ah,%%al \n jz .MCE \n loop .MC"::"a"(value),"b"(mem),"c"(count)); //%b0
+	asm(".MCE:\n neg %%ecx \n movl %%esi, %0":"=a"(result));
+	return result;
+	
 }
 
 size_t strlen(char *str) {
-	return (char*)memchr(str, '\0', -1) - str;
+	return (char*)memchr(str, '\0', -1)- str-1;
 }
 
 void strcpy(char *dest, char *src) {
