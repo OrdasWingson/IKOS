@@ -7,6 +7,7 @@ section ".text" executable
 
 _start:
         movzx edx, dl
+		push eax
         push ebx
         push esi
         push edx

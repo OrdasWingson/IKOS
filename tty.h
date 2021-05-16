@@ -9,6 +9,7 @@ void set_text_attr(char attr);
 void move_cursor(unsigned int pos);
 char *int_to_str(size_t value, unsigned char base);
 void printf(char *fmt, ...);
+
 char in_char(bool wait);
 void in_string(char *buffer, size_t buffer_size);
 

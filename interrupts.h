@@ -10,6 +10,7 @@ uint8 irq_count;
 
 void init_interrupts();
 void set_int_handler(uint8 index, void *handler, uint8 type);
-
+void NMI_enable();
+void NMI_disable();
 
 #endif

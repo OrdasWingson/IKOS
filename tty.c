@@ -141,6 +141,8 @@ void printf(char *fmt, ...) {
 	va_end(args);
 } 
 
+
+
 uint8 in_scancode() {
 	uint8 result;
 	if (key_buffer_head != key_buffer_tail) {

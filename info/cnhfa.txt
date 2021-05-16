@@ -1,0 +1,80 @@
+xor ax, ax ;80bd
+        mov cx, 3 * 4096 / 2 ;три таблицы по два байта размером 4096
+        mov di, 0x1000
+        rep stosw
+        ; Заполним каталог страниц
+        mov word[0x1000], 0x2000 + 111b
+        mov word[0x1FFC], 0x3000 + 111b
+        ; Заполним первую таблицу страниц
+        mov eax, 11b
+        mov cx, 0x100000 / 4096
+        mov di, 0x2000
+@@:
+        stosd
+        add eax, 0x1000
+        loop @b
+        ; Заполним последнюю таблицу страниц
+        mov di, 0x3000 ;
+        mov eax, dword[module_list] ;
+        or eax, 11b
+        mov ecx, dword[module_list + 8]
+        shr ecx, 12
+        add cx, 2; inc cx
+@@:
+        stosd
+        add eax, 0x1000
+        loop @b
+        mov dword[0x3FF4], 0x4000 + 11b ; Kernel stack
+        mov dword[0x3FF8], 0x3000 + 11b ; Kernel page table
+
+===============================================================
+ov esp, 0xFFFFDFFC ;mov esp, 0xFFFFDFFC
+        ; Выводим символы на экран
+        mov byte[0xB8000 + (25 * 80 - 6) * 2], "K"
+        mov dword[0xFFFFEFFC], 0xB8000 + 11b ;0xFFFFEFFC
+        mov byte[0xFFFFF000+ (25 * 80 - 7) * 2], "O"   ;0xFFFFF000                      
+        jmp 0xFFC00000 ;819a ;p-81ba
+        ; Завершение
+        jmp $
+
+
+FFC00000
+1111 1111 1100 0000 0000 0000 0000 0000
+
+FFFFEFFC
+1111 1111 1100 FFC
+            11 1111 1110 00 FF8
+                         1111 1111 1100 FFC
+
+FFFFF000
+1111 1111 1100
+            11 1111 1111 00
+                         0000 0000 0000
+
+
+#define PAGE_SIZE 0x1000
+#define PAGE_OFFSET_BITS 12
+#define PAGE_OFFSET_MASK 0xFFF
+#define PAGE_TABLE_INDEX_BITS 10
+#define PAGE_TABLE_INDEX_MASK 0x3FF
+
+#define PHYADDR_BITS 32
+
+#define PAGE_VALID 1
+#define PAGE_WRITABLE 2
+#define PAGE_USER 4
+
+typedef size_t phyaddr;
+
+#define KERNEL_BASE 0xFFC00000
+#define KERNEL_PAGE_TABLE 0xFFFFE000      
+#define TEMP_PAGE 0xFFFFF000              //0xFFFFF
+#define TEMP_PAGE_INFO (KERNEL_PAGE_TABLE + ((TEMP_PAGE >> PAGE_OFFSET_BITS) & PAGE_TABLE_INDEX_MASK) * sizeof(phyaddr))
+
+
+FFFFF000 >> 12) and 3FF *4) +FFFFE000
+fffff and 3ff (11111111111111111111 & 1111111111)
+FFC
+
+
+
